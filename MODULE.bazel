@@ -1,0 +1,26 @@
+"""Build setup for tracing"""
+
+module(name = "tracing-setup")
+
+rust_version = "1.82.0"
+
+bazel_dep(name = "rules_rust", version = "0.56.0")
+bazel_dep(name = "rules_foreign_cc", version = "0.13.0")
+
+rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
+rust.toolchain(
+    edition = "2021",
+    extra_target_triples = ["aarch64-unknown-linux-gnu"],
+    versions = [rust_version],
+)
+use_repo(rust, "rust_toolchains")
+
+crate = use_extension("@rules_rust//crate_universe:extension.bzl", "crate")
+crate.from_cargo(
+    name = "crates",
+    cargo_lockfile = "//:Cargo.lock",
+    manifests = [
+        "//:Cargo.toml",
+    ],
+)
+use_repo(crate, "crates")

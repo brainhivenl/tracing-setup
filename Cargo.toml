@@ -1,0 +1,22 @@
+[package]
+name = "tracing-setup"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum-tracing-opentelemetry = "0.18.1"
+opentelemetry = { version = "0.23", features = ["metrics"] }
+opentelemetry-otlp = { version = "0.16.0", features = ["metrics", "logs"] }
+opentelemetry-resource-detectors = "0.1.0"
+opentelemetry-semantic-conventions = "0.15.0"
+opentelemetry_sdk = { version = "0.23.0", features = ["rt-tokio", "metrics"] }
+sentry = { version = "0.34.0", default-features = false, features = ["anyhow", "panic", "reqwest", "rustls", "backtrace"] }
+sentry-tracing = "0.34.0"
+tonic-tracing-opentelemetry = "0.20.0"
+tower-http = { version = "0.5.2", features = ["trace"] }
+tracing = "0.1.40"
+tracing-opentelemetry = "0.24.0"
+tracing-opentelemetry-instrumentation-sdk = { version = "0.18.1", features = [
+    "tracing_level_info",
+] }
+tracing-subscriber = { version = "0.3.18", features = ["env-filter", "json"] }

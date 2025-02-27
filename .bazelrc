@@ -1,0 +1,4 @@
+common --registry=https://bcr.bazel.build
+common --registry=https://raw.githubusercontent.com/brainhivenl/bazel-registry/main/
+
+build --build_metadata=REPO_URL=https://github.com/brainhivenl/tracing-setup.git
