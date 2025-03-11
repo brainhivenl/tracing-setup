@@ -1,6 +1,9 @@
-use std::time::Duration;
+use std::{env, time::Duration};
 
-use opentelemetry::{trace::TraceError, KeyValue};
+use opentelemetry::{
+    trace::{noop::NoopTracer, TraceError},
+    KeyValue,
+};
 use opentelemetry_sdk::{
     resource::{EnvResourceDetector, ResourceDetector, TelemetryResourceDetector},
     runtime,
@@ -57,14 +60,25 @@ where
 pub fn open_telemetry<S>(
     service_name: &'static str,
     service_version: &'static str,
-) -> Result<impl Layer<S>, TraceError>
+) -> Result<Box<dyn Layer<S>>, TraceError>
 where
     S: Subscriber + for<'span> LookupSpan<'span>,
 {
+    let disabled = env::var("OTEL_SDK_DISABLED").ok().as_deref() == Some("true");
+
+    if disabled {
+        tracing::info!("disabling opentelemetry as per OTEL_SDK_DISABLED");
+        return Ok(Box::new(
+            OpenTelemetryLayer::new(NoopTracer::new()).with_filter(LevelFilter::OFF),
+        ));
+    }
+
     let tracer = otlp_tracer(&[
         KeyValue::new(SERVICE_NAME, service_name),
         KeyValue::new(SERVICE_VERSION, service_version),
     ])?;
 
-    Ok(OpenTelemetryLayer::new(tracer).with_filter(LevelFilter::INFO))
+    Ok(Box::new(
+        OpenTelemetryLayer::new(tracer).with_filter(LevelFilter::INFO),
+    ))
 }
