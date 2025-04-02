@@ -1,35 +1,35 @@
-use std::{env, time::Duration};
+use std::env;
 
-use opentelemetry::{trace::TraceError, KeyValue};
+use opentelemetry::trace::TracerProvider as _;
+use opentelemetry::KeyValue;
+use opentelemetry_otlp::ExporterBuildError;
 use opentelemetry_sdk::{
-    resource::{EnvResourceDetector, ResourceDetector, TelemetryResourceDetector},
-    runtime,
-    trace::{BatchConfig, Config, Tracer},
+    resource::{EnvResourceDetector, TelemetryResourceDetector},
+    trace::SdkTracerProvider,
     Resource,
 };
-use opentelemetry_semantic_conventions::{
-    resource::{SERVICE_NAME, SERVICE_VERSION},
-    SCHEMA_URL,
-};
+use opentelemetry_semantic_conventions::resource::{SERVICE_NAME, SERVICE_VERSION};
 use sentry_tracing::EventFilter;
 use tracing::{level_filters::LevelFilter, Subscriber};
-use tracing_opentelemetry::OpenTelemetryLayer;
 use tracing_subscriber::{registry::LookupSpan, EnvFilter, Layer};
 
-fn otlp_tracer(keypairs: &[KeyValue]) -> Result<Tracer, TraceError> {
-    let noop_timeout = Duration::from_secs(0);
-    let telemetry = TelemetryResourceDetector.detect(noop_timeout);
-    let mut env = EnvResourceDetector::new().detect(noop_timeout);
-    let mut resource = Resource::from_schema_url(keypairs.to_vec(), SCHEMA_URL);
+fn sdk_provider(keypairs: &[KeyValue]) -> Result<SdkTracerProvider, ExporterBuildError> {
+    let exporter = opentelemetry_otlp::SpanExporter::builder()
+        .with_tonic()
+        .build()?;
 
-    opentelemetry_otlp::new_pipeline()
-        .tracing()
-        .with_trace_config(
-            Config::default().with_resource(telemetry.merge(&mut env).merge(&mut resource)),
+    Ok(opentelemetry_sdk::trace::SdkTracerProvider::builder()
+        .with_resource(
+            Resource::builder()
+                .with_detectors(&[
+                    Box::new(EnvResourceDetector::new()),
+                    Box::new(TelemetryResourceDetector),
+                ])
+                .with_attributes(keypairs.to_vec())
+                .build(),
         )
-        .with_batch_config(BatchConfig::default())
-        .with_exporter(opentelemetry_otlp::new_exporter().tonic())
-        .install_batch(runtime::Tokio)
+        .with_batch_exporter(exporter)
+        .build())
 }
 
 pub fn sentry<S>() -> impl Layer<S>
@@ -57,21 +57,21 @@ where
 pub fn open_telemetry<S>(
     service_name: &'static str,
     service_version: &'static str,
-) -> Result<impl Layer<S>, TraceError>
+) -> Result<impl Layer<S>, ExporterBuildError>
 where
     S: Subscriber + for<'span> LookupSpan<'span>,
 {
-    let tracer = otlp_tracer(&[
+    let provider = sdk_provider(&[
         KeyValue::new(SERVICE_NAME, service_name),
         KeyValue::new(SERVICE_VERSION, service_version),
     ])?;
 
-    Ok(OpenTelemetryLayer::new(tracer).with_filter(
-        if env::var("OTEL_SDK_DISABLED").ok().is_some() {
+    Ok(tracing_opentelemetry::layer()
+        .with_tracer(provider.tracer(service_name))
+        .with_filter(if env::var("OTEL_SDK_DISABLED").ok().is_some() {
             tracing::info!("disabling opentelemetry as per OTEL_SDK_DISABLED");
             LevelFilter::OFF
         } else {
             LevelFilter::INFO
-        },
-    ))
+        }))
 }
