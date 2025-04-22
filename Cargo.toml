@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-axum-tracing-opentelemetry = "0.18.1"
+axum-tracing-opentelemetry = "0.28.0"
 opentelemetry = { version = "0.29", features = ["metrics"] }
 opentelemetry-otlp = { version = "0.29.0", features = [
     "metrics",
