@@ -68,6 +68,8 @@ where
 
     Ok(tracing_opentelemetry::layer()
         .with_tracer(provider.tracer(service_name))
+        .with_error_events_to_exceptions(true)
+        .with_error_records_to_exceptions(true)
         .with_filter(if env::var("OTEL_SDK_DISABLED").ok().is_some() {
             tracing::info!("disabling opentelemetry as per OTEL_SDK_DISABLED");
             LevelFilter::OFF
