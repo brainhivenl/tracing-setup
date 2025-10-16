@@ -9,7 +9,6 @@ use opentelemetry_sdk::{
     Resource,
 };
 use opentelemetry_semantic_conventions::resource::{SERVICE_NAME, SERVICE_VERSION};
-use sentry_tracing::EventFilter;
 use tracing::{level_filters::LevelFilter, Subscriber};
 use tracing_subscriber::{registry::LookupSpan, EnvFilter, Layer};
 
@@ -30,18 +29,6 @@ fn sdk_provider(keypairs: &[KeyValue]) -> Result<SdkTracerProvider, ExporterBuil
         )
         .with_batch_exporter(exporter)
         .build())
-}
-
-pub fn sentry<S>() -> impl Layer<S>
-where
-    S: Subscriber + for<'span> LookupSpan<'span>,
-{
-    sentry_tracing::layer()
-        .enable_span_attributes()
-        .event_filter(|md| match md.level() {
-            &tracing::Level::ERROR => EventFilter::Event,
-            _ => EventFilter::Ignore,
-        })
 }
 
 pub fn logging<S>() -> impl Layer<S>
